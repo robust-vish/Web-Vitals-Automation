@@ -1,0 +1,6 @@
+google-cloud-bigquery>=3.13
+gspread>=6.0
+python-dotenv>=1.0
+pandas>=2.2
+pyarrow>=14.0
+db-dtypes>=1.0
