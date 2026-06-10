@@ -1,6 +1,5 @@
 import os
 import sys
-import math
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -16,16 +15,35 @@ PROJECT_ID = os.getenv("PROJECT_ID")
 DATASET_ID = os.getenv("DATASET_ID")
 JSON_KEY_PATH = os.getenv("JSON_KEY_PATH")
 SHEET_URL = os.getenv("REPORT_SHEET_URL")
+
 PLATFORM_CONFIG = {
     "android": {
+        "event_prefix": "Web_Vitals_buylead_listing_imweb",
         "os_filter": "Android",
+        "page_filter": "%/buyleads%",
         "sheet_name": "Android web vitals",
-        "label": "Android",
+        "label": "Android BL Listing",
     },
     "ios": {
+        "event_prefix": "Web_Vitals_buylead_listing_imweb",
         "os_filter": "iOS",
+        "page_filter": "%/buyleads%",
         "sheet_name": "IOS web vitals",
-        "label": "iOS",
+        "label": "iOS BL Listing",
+    },
+    "blsearch": {
+        "event_prefix": "Web_Vitals_buylead_search_imweb",
+        "os_filter": None,
+        "page_filter": None,
+        "sheet_name": "Bl Search Web vitals",
+        "label": "BL Search (Android + iOS)",
+    },
+    "autosuggest": {
+        "event_prefix": "Web_Vitals_buylead_Auto_Suggest_imweb",
+        "os_filter": None,
+        "page_filter": None,
+        "sheet_name": "Autosuggest web vitals",
+        "label": "Autosuggest (Android + iOS)",
     },
 }
 
@@ -50,14 +68,25 @@ def format_value(metric, value, platform="android"):
         return 0 if metric == "cls" and platform == "ios" else ""
     if metric in ("fcp", "lcp", "inp"):
         return int(round(value))
-    elif metric == "cls":
-        return round(value, 2)
     return round(value, 2)
 
 
-def query_bigquery(date_str, os_filter):
+def query_bigquery(date_str, config):
     credentials = service_account.Credentials.from_service_account_file(JSON_KEY_PATH)
     client = bigquery.Client(credentials=credentials, project=PROJECT_ID)
+
+    where_clauses = [
+        f"STARTS_WITH(event_name, '{config['event_prefix']}')",
+        f"(SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location') LIKE '%app.indiamart.com%'",
+    ]
+    if config["os_filter"]:
+        where_clauses.append(f"device.operating_system = '{config['os_filter']}'")
+    if config["page_filter"]:
+        where_clauses.append(
+            f"(SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location') LIKE '{config['page_filter']}'"
+        )
+
+    where_sql = "\n          AND ".join(where_clauses)
 
     sql = f"""
     WITH parsed AS (
@@ -72,12 +101,7 @@ def query_bigquery(date_str, os_filter):
           (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'eventAction') AS ea
         FROM `{PROJECT_ID}.{DATASET_ID}.events_{date_str}`
         WHERE
-          STARTS_WITH(event_name, 'Web_Vitals_buylead_listing_imweb')
-          AND device.operating_system = '{os_filter}'
-          AND (SELECT value.string_value FROM UNNEST(event_params)
-               WHERE key = 'page_location') LIKE '%app.indiamart.com%'
-          AND (SELECT value.string_value FROM UNNEST(event_params)
-               WHERE key = 'page_location') LIKE '%/buyleads%'
+          {where_sql}
       )
     )
     SELECT
@@ -151,12 +175,16 @@ def update_sheet(date, data, sheet_name, platform):
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in PLATFORM_CONFIG:
         print("Usage:")
-        print("  python web_vitals_automation.py android [YYYY-MM-DD]")
-        print("  python web_vitals_automation.py ios [YYYY-MM-DD]")
+        print("  python web_vitals_automation.py android      [YYYY-MM-DD]")
+        print("  python web_vitals_automation.py ios          [YYYY-MM-DD]")
+        print("  python web_vitals_automation.py blsearch     [YYYY-MM-DD]")
+        print("  python web_vitals_automation.py autosuggest  [YYYY-MM-DD]")
         print("\nExamples:")
-        print("  python web_vitals_automation.py android 2026-05-25")
-        print("  python web_vitals_automation.py ios 2026-05-25")
-        print("  python web_vitals_automation.py android          (yesterday)")
+        print("  python web_vitals_automation.py android     2026-05-25")
+        print("  python web_vitals_automation.py ios         2026-05-25")
+        print("  python web_vitals_automation.py blsearch    2026-06-05")
+        print("  python web_vitals_automation.py autosuggest 2026-06-06")
+        print("  python web_vitals_automation.py android              (yesterday)")
         sys.exit(1)
 
     platform = sys.argv[1]
@@ -176,7 +204,7 @@ def main():
 
     print("\n[1/2] Querying BigQuery...")
     try:
-        data = query_bigquery(date_str, config["os_filter"])
+        data = query_bigquery(date_str, config)
     except Exception as e:
         print(f"  ERROR: {e}")
         sys.exit(1)
