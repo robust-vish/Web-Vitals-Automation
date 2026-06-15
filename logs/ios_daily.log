@@ -1,0 +1,35 @@
+==================================================
+  Web Vitals Automation - iOS BL Listing
+  Date: 2026-06-10 (table: events_20260610)
+==================================================
+
+[1/2] Querying BigQuery...
+  ERROR: 404 Not found: Table indiamart-ga-big-data:analytics_327723810.events_20260610 was not found in location US; reason: notFound, message: Not found: Table indiamart-ga-big-data:analytics_327723810.events_20260610 was not found in location US
+
+Location: US
+Job ID: 3c69b312-a107-4d04-a836-5ce5302d716f
+
+C:\Users\Indiamart\Desktop\Web_vitals_automation\.venv\Lib\site-packages\google\cloud\bigquery\table.py:2086: UserWarning: BigQuery Storage module not found, fetch data with the REST endpoint instead.
+  warnings.warn(
+==================================================
+  Web Vitals Automation - iOS BL Listing
+  Date: 2026-06-11 (table: events_20260611)
+==================================================
+
+[1/2] Querying BigQuery...
+  Events processed: 395,721
+
+  Metric          p50        p75        p90        p95
+  ------------------------------------------------
+  LCP             485        648       1020       2380
+  CLS             0.0        0.0        0.0        0.0
+  INP              48         88        184        264
+  FCP             421        555        758       1045
+  TTFB          295.0      406.0      567.0      794.0
+  ------------------------------------------------
+
+[2/2] Updating Google Sheet (IOS web vitals)...
+  Date '11 June' found in column 98, updating...
+  Sheet updated for 11 June!
+
+Done!
